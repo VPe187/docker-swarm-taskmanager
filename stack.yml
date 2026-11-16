@@ -1,0 +1,88 @@
+services:
+  frontend:
+    image: vpe187/taskmanager-frontend:2.0
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: ingress
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  backend:
+    image: vpe187/taskmanager-backend:2.0
+    networks:
+      - app_network
+    secrets:
+      - postgres_password
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 5s
+        order: start-first
+
+  database:
+    image: postgres:17.6
+    environment:
+      POSTGRES_USER: taskuser
+      POSTGRES_DB: taskmanager
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "pg_isready -U taskuser -d taskmanager"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+        delay: 5s
+
+networks:
+  app_network:
+    driver: overlay
+
+volumes:
+  postgres_data:
+
+secrets:
+  postgres_password:
+    external: true

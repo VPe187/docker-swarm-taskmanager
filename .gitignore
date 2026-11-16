@@ -1,0 +1,16 @@
+# Secrets
+db_password.txt
+*.pem
+.env
+
+# Database backups
+*.sql
+*.dump
+
+# Python
+__pycache__/
+*.pyc
+
+# Local editor files
+*.swp
+*~
